@@ -314,15 +314,13 @@ class FfmpegPlatform implements DynamicPlatformPlugin {
     if(this.config.portsmtp){
       const portsmtp = this.config.portsmtp;
       this.log('Setting up SMTP server on port ' + portsmtp + '...');
-      const smtpserver = new SMTPServer({
+      const smtpserver = new smtp({
         authOptional: true,
-        onData: function(stream, session, callback) {
-          this.log("Data received...");
-            const mailparser = new MailParser();
-            mailparser.on("end", function(mail_object) {
+          onData: (stream, session, callback) => {
+                const mailparser = new mail();
+                mailparser.on("end", (mail_object) => {
                 this.log("Subject: ", mail_object.subject);
-                const name = mail_object.subject;
-                this.automationHandler(name);          
+                this.automationHandler(mail_object.subject);
             });
             stream.pipe(mailparser);
             stream.on('end', callback);
@@ -331,7 +329,7 @@ class FfmpegPlatform implements DynamicPlatformPlugin {
             callback(null, { user: "anonymous" });
         }
       });
-      server.listen(portsmtp);
+      smtpserver.listen(portsmtp);
     }
 
     for (const [uuid, cameraConfig] of this.cameraConfigs) {
