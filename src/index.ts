@@ -18,6 +18,8 @@ import { StreamingDelegate } from './streamingDelegate';
 import mqtt = require('mqtt');
 import http = require('http');
 import url = require('url');
+import smtp = require('smtp-server').SMTPServer;
+import mail = require("mailparser").MailParser;
 const version = require('../package.json').version;
 
 let hap: HAP;
@@ -308,6 +310,28 @@ class FfmpegPlatform implements DynamicPlatformPlugin {
         res.writeHead(200);
         res.end();
       });
+    }
+    if(this.config.portsmtp){
+      const portsmtp = this.config.portsmtp;
+      this.log('Setting up SMTP server on port ' + portsmtp + '...');
+      const smtpserver = new SMTPServer({
+        authOptional: true,
+        onData: function(stream, session, callback) {
+          this.log("Data received...");
+            const mailparser = new MailParser();
+            mailparser.on("end", function(mail_object) {
+                this.log("Subject: ", mail_object.subject);
+                const name = mail_object.subject;
+                this.automationHandler(name);          
+            });
+            stream.pipe(mailparser);
+            stream.on('end', callback);
+        },
+        onAuth: function(auth, session, callback) {
+            callback(null, { user: "anonymous" });
+        }
+      });
+      server.listen(portsmtp);
     }
 
     for (const [uuid, cameraConfig] of this.cameraConfigs) {
